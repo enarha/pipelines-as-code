@@ -19,6 +19,7 @@
 set -euf
 cd $(dirname $(readlink -f ${0}))
 
+export KO_DOCKER_REPO=${KO_DOCKER_REPO:-"kind.local"}
 export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:-kind}
 export KUBECONFIG=${HOME}/.kube/config.${KIND_CLUSTER_NAME}
 export TARGET=kubernetes
@@ -49,7 +50,8 @@ REG_PORT='5000'
 REG_NAME='kind-registry'
 INSTALL_FROM_RELEASE=
 PAC_PASS_SECRET_FOLDER=${PAC_PASS_SECRET_FOLDER:-""}
-SUDO=sudo
+#SUDO=sudo
+SUDO=
 PAC_DIR=${PAC_DIR:-""}
 DISABLE_GITEA=${DISABLE_GITEA:-""}
 GITEA_HOST=${GITEA_HOST:-"localhost:3000"}
@@ -80,29 +82,29 @@ function reinstall_kind() {
 	${SUDO} $kind delete cluster --name ${KIND_CLUSTER_NAME} || true
 	sed "s,%DOCKERCFG%,${HOME}/.docker/config.json," kind.yaml >${TMPD}/kconfig.yaml
 
-	cat <<EOF >>${TMPD}/kconfig.yaml
-containerdConfigPatches:
-- |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${REG_PORT}"]
-    endpoint = ["http://${REG_NAME}:5000"]
-EOF
+#	cat <<EOF >>${TMPD}/kconfig.yaml
+#containerdConfigPatches:
+#- |-
+#  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${REG_PORT}"]
+#    endpoint = ["http://${REG_NAME}:5000"]
+#EOF
 
 	${SUDO} ${kind} create cluster --name ${KIND_CLUSTER_NAME} --config ${TMPD}/kconfig.yaml
 	mkdir -p $(dirname ${KUBECONFIG})
 	${SUDO} ${kind} --name ${KIND_CLUSTER_NAME} get kubeconfig >${KUBECONFIG}
 
-	docker network connect "kind" "${REG_NAME}" 2>/dev/null || true
-	cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: local-registry-hosting
-  namespace: kube-public
-data:
-  localRegistryHosting.v1: |
-    host: "localhost:${REG_PORT}"
-    help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
-EOF
+#	docker network connect "kind" "${REG_NAME}" 2>/dev/null || true
+#	cat <<EOF | kubectl apply -f -
+#apiVersion: v1
+#kind: ConfigMap
+#metadata:
+#  name: local-registry-hosting
+#  namespace: kube-public
+#data:
+#  localRegistryHosting.v1: |
+#    host: "localhost:${REG_PORT}"
+#    help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
+#EOF
 
 }
 
@@ -162,7 +164,7 @@ function install_pac() {
 		if [[ -n ${PAC_DEPLOY_SCRIPT:-""} ]]; then
 			${PAC_DEPLOY_SCRIPT}
 		else
-			env KO_DOCKER_REPO=localhost:5000 $ko apply -f config --sbom=none -B >/dev/null
+			$ko apply -f config --sbom=none -B >/dev/null
 		fi
 		cd ${oldPwd}
 	fi
@@ -220,7 +222,7 @@ function install_gitea() {
 
 main() {
 	if [[ -z ${NO_REINSTALL_KIND} ]]; then
-		start_registry
+		#start_registry
 		reinstall_kind
 	else
 		echo "Skipping kind reinstall"
@@ -256,7 +258,7 @@ while getopts "ROGhgpcrb" o; do
 		exit
 		;;
 	b)
-		start_registry
+		#start_registry
 		reinstall_kind
 		install_nginx
 		install_tekton
