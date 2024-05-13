@@ -17,6 +17,7 @@
 # and set the PAC_DIR to it. It will automatically set the ingress to the right
 # place.
 set -euf
+set +x
 cd $(dirname $(readlink -f ${0}))
 
 export KO_DOCKER_REPO=${KO_DOCKER_REPO:-"kind.local"}
